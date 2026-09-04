@@ -20,15 +20,16 @@ def play_song():
     if not query:
         return jsonify({"error": "Falta la búsqueda"}), 400
 
-    # Configuración de búsqueda rápida y libre de DRM para radio
+    # Configuración ultra rápida sin descargas ni análisis pesados
     ydl_opts = {
-        'format': 'bestaudio[ext=mp3]/bestaudio[ext=m4a]/bestaudio/best',
+        'format': 'bestaudio/best',
         'noplaylist': True,
         'quiet': True,
         'default_search': 'scsearch1:',
         'nocheckcertificate': True,
         'ignoreerrors': True,
         'no_warnings': True,
+        'extract_flat': False,
     }
 
     try:
@@ -40,15 +41,11 @@ def play_song():
             if not info or not info.get('url'):
                 return jsonify({"error": "No se encontró audio compatible"}), 404
 
-            audio_url = info.get('url')
-            title = info.get('title', query)
-            duration = info.get('duration', 180)
-
             return jsonify({
                 "status": "success",
-                "title": title,
-                "stream_url": audio_url,
-                "duration": duration
+                "title": info.get('title', query),
+                "stream_url": info.get('url'),
+                "duration": info.get('duration', 180)
             }), 200
 
     except Exception as e:
