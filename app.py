@@ -21,56 +21,29 @@ def play_song():
     if not query:
         return jsonify({"error": "Falta la búsqueda"}), 400
 
-    video_id = None
-    title = query
-    duration = 180
-
-    # 1. Buscar el video mediante API pública alternativa (Piped)
-    try:
-        piped_resp = requests.get(
-            f"https://pipedapi.kavin.rocks/search?q={requests.utils.quote(query)}&filter=music_videos",
-            timeout=8
-        )
-        if piped_resp.status_code == 200:
-            results = piped_resp.json().get("items", [])
-            if results:
-                first = results[0]
-                # Extraer ID del video
-                url_path = first.get("url", "")
-                if "/watch?v=" in url_path:
-                    video_id = url_path.split("/watch?v=")[1]
-                title = first.get("title", query)
-                duration = first.get("duration", 180)
-    except Exception as e:
-        print(f"Error al buscar en API alternativa: {e}")
-
-    # Si no se obtuvo un ID por Piped, intentamos con SoundCloud vía yt-dlp
-    target_url = f"https://www.youtube.com/watch?v={video_id}" if video_id else f"scsearch1:{query}"
-
-    # 2. Extraer el enlace directo de audio
+    # Configuración optimizada para streams directos de audio no protegidos
     ydl_opts = {
-        'format': 'bestaudio/best',
+        'format': 'bestaudio[ext=mp3]/bestaudio[ext=m4a]/bestaudio/best',
         'noplaylist': True,
         'quiet': True,
+        'default_search': 'scsearch1:',
         'nocheckcertificate': True,
-        'ignoreerrors': False,
+        'ignoreerrors': True,
         'no_warnings': True,
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(target_url, download=False)
-            if 'entries' in info and len(info['entries']) > 0:
+            info = ydl.extract_info(query, download=False)
+            if info and 'entries' in info and len(info['entries']) > 0:
                 info = info['entries'][0]
 
-            audio_url = info.get('url')
-            if not title or title == query:
-                title = info.get('title', query)
-            if not duration:
-                duration = info.get('duration', 180)
+            if not info or not info.get('url'):
+                return jsonify({"error": "No se encontró un audio compatible o sin DRM"}), 404
 
-            if not audio_url:
-                return jsonify({"error": "No se pudo extraer el audio"}), 404
+            audio_url = info.get('url')
+            title = info.get('title', query)
+            duration = info.get('duration', 180)
 
             return jsonify({
                 "status": "success",
@@ -85,4 +58,4 @@ def play_song():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-    
+        
