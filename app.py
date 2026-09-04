@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 import yt_dlp
 
 app = Flask(__name__)
@@ -20,7 +20,6 @@ def play_song():
     if not query:
         return jsonify({"error": "Falta la búsqueda"}), 400
 
-    # Configuración ultra rápida sin descargas ni análisis pesados
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
@@ -51,7 +50,37 @@ def play_song():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/stream", methods=["GET"])
+def stream_audio():
+    query = request.args.get("query")
+    if not query:
+        return "Falta el parámetro query", 400
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'noplaylist': True,
+        'quiet': True,
+        'default_search': 'scsearch1:',
+        'nocheckcertificate': True,
+        'ignoreerrors': True,
+        'no_warnings': True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=False)
+            if info and 'entries' in info and len(info['entries']) > 0:
+                info = info['entries'][0]
+
+            stream_url = info.get('url') if info else None
+            if stream_url:
+                return redirect(stream_url, code=302)
+            else:
+                return "No se encontró el audio", 404
+    except Exception as e:
+        return str(e), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-                
+    
