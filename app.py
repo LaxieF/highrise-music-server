@@ -1,6 +1,5 @@
 import os
 from flask import Flask, request, jsonify
-import requests
 import yt_dlp
 
 app = Flask(__name__)
@@ -21,7 +20,7 @@ def play_song():
     if not query:
         return jsonify({"error": "Falta la búsqueda"}), 400
 
-    # Configuración optimizada para streams directos de audio no protegidos
+    # Configuración de búsqueda rápida y libre de DRM para radio
     ydl_opts = {
         'format': 'bestaudio[ext=mp3]/bestaudio[ext=m4a]/bestaudio/best',
         'noplaylist': True,
@@ -39,7 +38,7 @@ def play_song():
                 info = info['entries'][0]
 
             if not info or not info.get('url'):
-                return jsonify({"error": "No se encontró un audio compatible o sin DRM"}), 404
+                return jsonify({"error": "No se encontró audio compatible"}), 404
 
             audio_url = info.get('url')
             title = info.get('title', query)
@@ -53,9 +52,9 @@ def play_song():
             }), 200
 
     except Exception as e:
-        return jsonify({"error": f"Error al procesar audio: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-        
+                
