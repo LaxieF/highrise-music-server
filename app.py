@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify
 import yt_dlp
 
 app = Flask(__name__)
@@ -8,8 +8,7 @@ app = Flask(__name__)
 def home():
     return jsonify({
         "status": "online",
-        "service": "Highrise Music Streamer API",
-        "message": "Servidor activo y listo."
+        "service": "Highrise Music Streamer API"
     }), 200
 
 @app.route("/play", methods=["POST"])
@@ -20,15 +19,15 @@ def play_song():
     if not query:
         return jsonify({"error": "Falta la búsqueda"}), 400
 
+    # Configuración para buscar en YouTube y fallback
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
         'quiet': True,
-        'default_search': 'scsearch1:',
+        'default_search': 'ytsearch1:',
         'nocheckcertificate': True,
         'ignoreerrors': True,
         'no_warnings': True,
-        'extract_flat': False,
     }
 
     try:
@@ -38,7 +37,15 @@ def play_song():
                 info = info['entries'][0]
 
             if not info or not info.get('url'):
-                return jsonify({"error": "No se encontró audio compatible"}), 404
+                # Intento secundario en SoundCloud si falla YouTube
+                ydl_opts['default_search'] = 'scsearch1:'
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl_sc:
+                    info = ydl_sc.extract_info(query, download=False)
+                    if info and 'entries' in info and len(info['entries']) > 0:
+                        info = info['entries'][0]
+
+            if not info or not info.get('url'):
+                return jsonify({"error": "No se encontró audio"}), 404
 
             return jsonify({
                 "status": "success",
@@ -49,36 +56,6 @@ def play_song():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route("/stream", methods=["GET"])
-def stream_audio():
-    query = request.args.get("query")
-    if not query:
-        return "Falta el parámetro query", 400
-
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-        'quiet': True,
-        'default_search': 'scsearch1:',
-        'nocheckcertificate': True,
-        'ignoreerrors': True,
-        'no_warnings': True,
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=False)
-            if info and 'entries' in info and len(info['entries']) > 0:
-                info = info['entries'][0]
-
-            stream_url = info.get('url') if info else None
-            if stream_url:
-                return redirect(stream_url, code=302)
-            else:
-                return "No se encontró el audio", 404
-    except Exception as e:
-        return str(e), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
