@@ -20,20 +20,19 @@ def play_song():
     if not query:
         return jsonify({"error": "Falta la búsqueda"}), 400
 
-    # Configuración anti-bloqueo de YouTube para Render
+    # Configuración anti-bot para Render usando clientes alternativos
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
         'quiet': True,
         'default_search': 'ytsearch1:',
-        'source_address': '0.0.0.0',
         'nocheckcertificate': True,
         'ignoreerrors': False,
-        'logtostderr': False,
         'no_warnings': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web']
+                'player_client': ['tvhtml5', 'android_embedded'],
+                'skip': ['hls', 'dash']
             }
         }
     }
@@ -64,4 +63,4 @@ def play_song():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-    
+            
